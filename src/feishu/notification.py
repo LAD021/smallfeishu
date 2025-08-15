@@ -9,6 +9,7 @@
 """
 
 import json
+import re
 import time
 from typing import List, Dict, Any, Optional
 
@@ -52,6 +53,60 @@ class FeishuNotifier:
         
         logger.info(f"初始化飞书通知器，webhook数量: {len(webhooks)}, 超时时间: {timeout}秒")
     
+    def _format_message(self, text: str) -> str:
+        """格式化消息文本
+        
+        处理换行符、去除多余空行和空格，优化消息排版。
+        
+        Args:
+            text: 原始文本
+            
+        Returns:
+            str: 格式化后的文本
+        """
+        if not text:
+            return text
+        
+        # 1. 处理转义的换行符 \n -> 实际换行符
+        formatted_text = text.replace('\\n', '\n')
+        
+        # 2. 处理其他常见的转义字符
+        formatted_text = formatted_text.replace('\\t', '\t')
+        formatted_text = formatted_text.replace('\\r', '\r')
+        
+        # 3. 去除行首行尾的空白字符
+        lines = formatted_text.split('\n')
+        lines = [line.strip() for line in lines]
+        
+        # 4. 去除多余的连续空行（保留最多一个空行）
+        cleaned_lines = []
+        prev_empty = False
+        
+        for line in lines:
+            is_empty = not line.strip()
+            if is_empty:
+                if not prev_empty:
+                    cleaned_lines.append('')
+                prev_empty = True
+            else:
+                cleaned_lines.append(line)
+                prev_empty = False
+        
+        # 5. 去除开头和结尾的空行
+        while cleaned_lines and not cleaned_lines[0].strip():
+            cleaned_lines.pop(0)
+        while cleaned_lines and not cleaned_lines[-1].strip():
+            cleaned_lines.pop()
+        
+        result = '\n'.join(cleaned_lines)
+        
+        # 记录格式化过程
+        if result != text:
+            logger.debug(f"消息格式化前: {repr(text)}")
+            logger.debug(f"消息格式化后: {repr(result)}")
+        
+        return result
+    
     def send_text(self, text: str) -> bool:
         """发送文本消息
         
@@ -68,15 +123,19 @@ class FeishuNotifier:
         if not text or not text.strip():
             raise ValueError("消息内容不能为空")
         
+        # 格式化消息文本
+        formatted_text = self._format_message(text)
+        
         payload = {
             "msg_type": "text",
             "content": {
-                "text": text
+                "text": formatted_text
             }
         }
         
         logger.info(f"准备发送文本消息到 {len(self.webhooks)} 个webhook")
-        logger.debug(f"消息内容: {text}")
+        logger.debug(f"原始消息内容: {text}")
+        logger.debug(f"格式化后消息内容: {formatted_text}")
         
         return self._send_to_webhooks(payload)
     

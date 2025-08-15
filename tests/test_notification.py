@@ -191,3 +191,85 @@ class TestFeishuNotifier:
         # 验证日志调用
         assert mock_logger.info.called
         assert mock_logger.debug.called
+    
+    def test_format_message_newlines(self):
+        """测试换行符处理"""
+        # 测试转义换行符转换
+        result = self.notifier._format_message("第一行\\n第二行\\n第三行")
+        expected = "第一行\n第二行\n第三行"
+        assert result == expected
+        
+        # 测试混合换行符
+        result = self.notifier._format_message("第一行\\n\n第二行")
+        expected = "第一行\n\n第二行"
+        assert result == expected
+    
+    def test_format_message_tabs_and_carriage_returns(self):
+        """测试制表符和回车符处理"""
+        # 测试制表符
+        result = self.notifier._format_message("列1\\t列2\\t列3")
+        expected = "列1\t列2\t列3"
+        assert result == expected
+        
+        # 测试回车符
+        result = self.notifier._format_message("文本\\r换行")
+        expected = "文本\r换行"
+        assert result == expected
+    
+    def test_format_message_remove_trailing_spaces(self):
+        """测试去除行尾空格"""
+        result = self.notifier._format_message("第一行   \\n第二行\t\\n第三行")
+        expected = "第一行\n第二行\n第三行"
+        assert result == expected
+    
+    def test_format_message_remove_extra_empty_lines(self):
+        """测试去除多余空行"""
+        # 测试多个连续空行
+        result = self.notifier._format_message("第一行\\n\\n\\n\\n第二行")
+        expected = "第一行\n\n第二行"
+        assert result == expected
+        
+        # 测试开头和结尾的空行
+        result = self.notifier._format_message("\\n\\n第一行\\n第二行\\n\\n")
+        expected = "第一行\n第二行"
+        assert result == expected
+    
+    def test_format_message_complex_case(self):
+        """测试复杂格式化场景"""
+        input_text = "\\n\\n  标题  \\n\\n\\n内容第一行   \\n\\n内容第二行\\t\\n\\n\\n"
+        result = self.notifier._format_message(input_text)
+        expected = "标题\n\n内容第一行\n\n内容第二行"
+        assert result == expected
+    
+    def test_format_message_empty_or_none(self):
+        """测试空文本或None"""
+        assert self.notifier._format_message("") == ""
+        assert self.notifier._format_message(None) is None
+        assert self.notifier._format_message("   ") == ""
+    
+    @patch('feishu.notification.requests.post')
+    def test_send_text_with_formatting(self, mock_post):
+        """测试发送带格式化的文本消息"""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"code": 0, "msg": "success"}
+        mock_post.return_value = mock_response
+        
+        # 发送包含转义换行符的消息
+        original_text = "测试消息\\n第二行\\n\\n第三行"
+        result = self.notifier.send_text(original_text)
+        
+        assert result is True
+        
+        # 验证格式化后的消息被发送
+        expected_formatted = "测试消息\n第二行\n\n第三行"
+        expected_payload = {
+            "msg_type": "text",
+            "content": {
+                "text": expected_formatted
+            }
+        }
+        
+        for call in mock_post.call_args_list:
+            args, kwargs = call
+            assert kwargs['json'] == expected_payload
