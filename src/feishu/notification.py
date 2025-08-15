@@ -1,0 +1,212 @@
+"""通知模块
+
+负责发送消息到飞书群聊。
+主要功能：
+- 通过webhook发送文本消息
+- 发送富文本消息
+- 错误处理和重试
+- 日志记录
+"""
+
+import json
+import time
+from typing import List, Dict, Any, Optional
+
+import requests
+from loguru import logger
+from requests.exceptions import RequestException, Timeout, ConnectionError
+
+
+class NotificationError(Exception):
+    """通知相关错误"""
+    pass
+
+
+class FeishuNotifier:
+    """飞书通知器
+    
+    负责向飞书群聊发送各种类型的消息。
+    """
+    
+    def __init__(self, webhooks: List[str], timeout: int = 10):
+        """初始化飞书通知器
+        
+        Args:
+            webhooks: 飞书webhook地址列表
+            timeout: 请求超时时间（秒），默认10秒
+            
+        Raises:
+            ValueError: 参数无效时抛出
+        """
+        if not webhooks:
+            raise ValueError("webhook列表不能为空")
+        
+        if timeout <= 0:
+            raise ValueError("超时时间必须大于0")
+        
+        self.webhooks = webhooks
+        self.timeout = timeout
+        self.headers = {
+            'Content-Type': 'application/json; charset=utf-8'
+        }
+        
+        logger.info(f"初始化飞书通知器，webhook数量: {len(webhooks)}, 超时时间: {timeout}秒")
+    
+    def send_text(self, text: str) -> bool:
+        """发送文本消息
+        
+        Args:
+            text: 要发送的文本内容
+            
+        Returns:
+            bool: 发送是否成功
+            
+        Raises:
+            ValueError: 消息内容为空时抛出
+            NotificationError: 发送失败时抛出
+        """
+        if not text or not text.strip():
+            raise ValueError("消息内容不能为空")
+        
+        payload = {
+            "msg_type": "text",
+            "content": {
+                "text": text
+            }
+        }
+        
+        logger.info(f"准备发送文本消息到 {len(self.webhooks)} 个webhook")
+        logger.debug(f"消息内容: {text}")
+        
+        return self._send_to_webhooks(payload)
+    
+    def send_rich_text(self, content: Dict[str, Any]) -> bool:
+        """发送富文本消息
+        
+        Args:
+            content: 富文本内容，格式参考飞书API文档
+            
+        Returns:
+            bool: 发送是否成功
+            
+        Raises:
+            ValueError: 内容为空时抛出
+            NotificationError: 发送失败时抛出
+        """
+        if not content:
+            raise ValueError("富文本内容不能为空")
+        
+        payload = {
+            "msg_type": "post",
+            "content": {
+                "post": content
+            }
+        }
+        
+        logger.info(f"准备发送富文本消息到 {len(self.webhooks)} 个webhook")
+        logger.debug(f"富文本内容: {json.dumps(content, ensure_ascii=False)}")
+        
+        return self._send_to_webhooks(payload)
+    
+    def _send_to_webhooks(self, payload: Dict[str, Any]) -> bool:
+        """向所有webhook发送消息
+        
+        Args:
+            payload: 消息载荷
+            
+        Returns:
+            bool: 是否全部发送成功
+            
+        Raises:
+            NotificationError: 发送失败时抛出
+        """
+        success_count = 0
+        errors = []
+        
+        for i, webhook in enumerate(self.webhooks):
+            try:
+                self._send_single_webhook(webhook, payload)
+                success_count += 1
+                logger.debug(f"webhook {i+1}/{len(self.webhooks)} 发送成功")
+            except Exception as e:
+                error_msg = f"webhook {i+1}/{len(self.webhooks)} 发送失败: {str(e)}"
+                logger.error(error_msg)
+                errors.append(error_msg)
+        
+        # 检查发送结果
+        if success_count == 0:
+            # 全部失败
+            error_summary = "; ".join(errors)
+            raise NotificationError(f"所有webhook发送失败: {error_summary}")
+        elif success_count < len(self.webhooks):
+            # 部分失败
+            error_summary = "; ".join(errors)
+            raise NotificationError(f"部分webhook发送失败 ({success_count}/{len(self.webhooks)} 成功): {error_summary}")
+        
+        # 全部成功
+        logger.info(f"消息发送成功，共 {success_count} 个webhook")
+        return True
+    
+    def _send_single_webhook(self, webhook: str, payload: Dict[str, Any]) -> None:
+        """向单个webhook发送消息
+        
+        Args:
+            webhook: webhook地址
+            payload: 消息载荷
+            
+        Raises:
+            NotificationError: 发送失败时抛出
+        """
+        try:
+            logger.debug(f"向webhook发送请求: {webhook}")
+            
+            response = requests.post(
+                webhook,
+                json=payload,
+                headers=self.headers,
+                timeout=self.timeout
+            )
+            
+            # 检查HTTP状态码
+            if response.status_code != 200:
+                raise NotificationError(
+                    f"HTTP请求失败，状态码: {response.status_code}, 响应: {response.text}"
+                )
+            
+            # 检查飞书API响应
+            try:
+                result = response.json()
+                if result.get('code') != 0:
+                    raise NotificationError(
+                        f"飞书API返回错误，代码: {result.get('code')}, 消息: {result.get('msg')}"
+                    )
+            except json.JSONDecodeError:
+                # 如果响应不是JSON格式，但状态码是200，认为成功
+                logger.warning(f"webhook响应不是JSON格式，但状态码为200，认为发送成功")
+            
+            logger.debug(f"webhook响应成功: {response.text}")
+            
+        except Timeout as e:
+            raise NotificationError(f"请求超时: {str(e)}")
+        except ConnectionError as e:
+            raise NotificationError(f"网络连接失败: {str(e)}")
+        except RequestException as e:
+            raise NotificationError(f"请求异常: {str(e)}")
+        except Exception as e:
+            raise NotificationError(f"未知错误: {str(e)}")
+    
+    def get_webhook_count(self) -> int:
+        """获取webhook数量
+        
+        Returns:
+            int: webhook数量
+        """
+        return len(self.webhooks)
+    
+    def get_timeout(self) -> int:
+        """获取超时时间
+        
+        Returns:
+            int: 超时时间（秒）
+        """
+        return self.timeout
