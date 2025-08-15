@@ -1,282 +1,309 @@
-# 飞书命令行工具
+# SmallFeishu 开发文档
 
-一个简单易用的飞书机器人消息发送命令行工具，支持通过webhook向飞书群聊发送消息。
+## 项目概述
 
-## 功能特性
+SmallFeishu 是一个简单易用的飞书机器人消息发送工具，提供命令行和Python API两种使用方式。
 
-- 🚀 **简单易用**: 一条命令即可发送消息到飞书群
-- 🔧 **配置灵活**: 支持多个webhook，可配置超时时间
-- 📝 **日志完善**: 详细的日志记录，支持文件和控制台输出
-- 🧪 **测试完整**: 完整的单元测试覆盖
-- 🛡️ **错误处理**: 完善的错误处理和重试机制
+## 项目结构
 
-## 安装
+```
+smallfeishu/
+├── src/
+│   └── feishu/
+│       ├── __init__.py          # 包初始化
+│       ├── cli.py               # 命令行界面
+│       ├── config.py            # 配置管理
+│       ├── bot.py               # 飞书机器人核心功能
+│       └── exceptions.py        # 自定义异常
+├── tests/                       # 测试文件
+├── docs/                        # 文档
+├── spikes/                      # 实验性代码
+├── config.example.toml          # 配置文件示例
+├── install.py                   # 安装后脚本
+├── pyproject.toml              # 项目配置
+└── README.md                   # 项目说明
+```
 
-### 使用uv安装（推荐）
+## 配置系统
+
+### 配置文件查找逻辑
+
+工具按以下优先级查找配置文件：
+
+1. **环境变量** `FEISHU_CONFIG_PATH` 指定的路径
+2. **用户配置目录** `~/.config/smallfeishu/config.toml` （推荐）
+3. **当前目录** `./config.toml`
+
+### 配置文件格式
+
+支持两种配置格式：
+
+#### 简化格式（推荐）
+```toml
+[feishu]
+enabled = true
+webhooks = [
+    "https://open.feishu.cn/open-apis/bot/v2/hook/TOKEN1",
+    "https://open.feishu.cn/open-apis/bot/v2/hook/TOKEN2"
+]
+```
+
+#### 完整格式（兼容）
+```toml
+[notifications.feishu]
+enabled = true
+webhooks = [
+    "https://open.feishu.cn/open-apis/bot/v2/hook/TOKEN1"
+]
+```
+
+### 配置管理API
+
+```python
+from feishu.config import Config
+
+# 加载配置
+config = Config.load()
+
+# 获取配置文件路径
+path = Config.get_config_path()
+
+# 获取默认配置目录
+dir_path = Config.get_default_config_dir()
+
+# 获取配置信息（脱敏）
+info = config.get_config_info()
+```
+
+## 核心组件
+
+### 1. 配置管理 (config.py)
+
+负责配置文件的加载、验证和管理：
+
+- `Config.load()`: 加载并验证配置文件
+- `Config._find_config_file()`: 查找配置文件
+- `Config.get_config_info()`: 获取配置信息（脱敏）
+- `Config._mask_webhook()`: 遮蔽敏感信息
+
+### 2. 飞书机器人 (bot.py)
+
+核心消息发送功能：
+
+- `FeishuBot.send_text()`: 发送文本消息
+- `FeishuBot.send_markdown()`: 发送Markdown消息
+- `FeishuBot._send_message()`: 底层消息发送
+- `FeishuBot._validate_webhook()`: Webhook验证
+
+### 3. 命令行界面 (cli.py)
+
+提供用户友好的命令行接口：
+
+- `send()`: 发送消息命令
+- `test()`: 测试连接命令
+- `status()`: 状态检查命令
+- `config()`: 配置管理命令
+- `version()`: 版本信息命令
+
+### 4. 异常处理 (exceptions.py)
+
+自定义异常类型：
+
+- `FeishuError`: 基础异常类
+- `ConfigError`: 配置相关异常
+- `NetworkError`: 网络相关异常
+- `ValidationError`: 验证相关异常
+
+## 安装系统
+
+### 安装后脚本 (install.py)
+
+在 `uv tool install` 时自动执行：
+
+1. 创建配置目录 `~/.config/smallfeishu/`
+2. 生成默认配置文件 `config.toml`
+3. 显示安装完成信息和使用指南
+
+### 配置文件初始化
+
+```python
+def create_config_file():
+    """创建配置文件"""
+    config_dir = Path.home() / ".config" / "smallfeishu"
+    config_file = config_dir / "config.toml"
+    
+    # 创建目录
+    config_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 写入示例配置
+    with open(config_file, 'w', encoding='utf-8') as f:
+        f.write(example_config)
+```
+
+## 开发指南
+
+### 环境设置
 
 ```bash
 # 克隆项目
-git clone <repository-url>
+git clone <repository_url>
 cd smallfeishu
 
 # 安装依赖
 uv sync
 
-# 安装为命令行工具
-uv pip install -e .
+# 安装开发版本
+uv tool install -e .
 ```
 
-### 使用pip安装
-
-```bash
-pip install -e .
-```
-
-## 配置
-
-### 1. 创建配置文件
-
-复制示例配置文件并填入真实信息：
-
-```bash
-cp config.example.toml config.toml
-```
-
-### 2. 配置飞书机器人
-
-编辑 `config.toml` 文件：
-
-```toml
-[notifications.feishu]
-# 是否启用飞书通知
-enabled = true
-
-# 飞书机器人 webhook 地址列表
-webhooks = [
-    "https://open.feishu.cn/open-apis/bot/v2/hook/YOUR_WEBHOOK_TOKEN_HERE"
-]
-```
-
-### 3. 获取飞书Webhook地址
-
-1. 在飞书群聊中添加机器人
-2. 选择"自定义机器人"
-3. 复制生成的webhook地址
-4. 将地址填入配置文件
-
-## 使用方法
-
-### 基本命令
-
-```bash
-# 查看版本
-feishu version
-
-# 查看配置状态
-feishu status
-
-# 发送测试消息
-feishu test
-
-# 发送文本消息
-feishu send "Hello, World!"
-```
-
-### 高级用法
-
-```bash
-# 使用自定义配置文件
-feishu send "测试消息" --config /path/to/config.toml
-
-# 发送多行消息
-feishu send "第一行\n第二行\n第三行"
-
-# 查看指定配置文件的状态
-feishu status --config /path/to/config.toml
-```
-
-## 命令详解
-
-### `feishu send`
-
-发送文本消息到飞书群。
-
-**语法**: `feishu send <message> [--config <config_file>]`
-
-**参数**:
-- `message`: 要发送的消息内容（必需）
-- `--config`: 配置文件路径（可选，默认为当前目录下的config.toml）
-
-**示例**:
-```bash
-feishu send "部署完成，请查看"
-feishu send "错误报告：数据库连接失败" --config prod.toml
-```
-
-### `feishu status`
-
-查看飞书通知配置状态。
-
-**语法**: `feishu status [--config <config_file>]`
-
-**示例**:
-```bash
-feishu status
-feishu status --config prod.toml
-```
-
-### `feishu test`
-
-发送测试消息验证配置是否正确。
-
-**语法**: `feishu test [--config <config_file>]`
-
-**示例**:
-```bash
-feishu test
-feishu test --config prod.toml
-```
-
-### `feishu version`
-
-显示工具版本信息。
-
-**语法**: `feishu version`
-
-## 配置文件详解
-
-```toml
-[notifications.feishu]
-# 是否启用飞书通知
-# 设置为 true 启用，false 禁用
-enabled = true
-
-# 飞书机器人 webhook 地址列表
-# 支持配置多个webhook，消息会发送到所有webhook
-webhooks = [
-    "https://open.feishu.cn/open-apis/bot/v2/hook/TOKEN1",
-    "https://open.feishu.cn/open-apis/bot/v2/hook/TOKEN2"
-]
-
-# 可选配置项
-# [notifications.feishu.advanced]
-# # 消息发送间隔（秒）
-# interval = 1
-# 
-# # 重试次数
-# retry_count = 3
-# 
-# # 超时时间（秒）
-# timeout = 10
-```
-
-## 开发
-
-### 项目结构
-
-```
-smallfeishu/
-├── src/feishu/          # 源代码
-│   ├── __init__.py      # 包初始化
-│   ├── cli.py           # 命令行接口
-│   ├── config.py        # 配置管理
-│   └── notification.py  # 通知发送
-├── tests/               # 测试用例
-│   ├── test_cli.py      # CLI测试
-│   ├── test_config.py   # 配置测试
-│   └── test_notification.py # 通知测试
-├── docs/                # 文档
-├── config.example.toml  # 配置示例
-├── pyproject.toml       # 项目配置
-└── README.md           # 项目说明
-```
-
-### 运行测试
+### 测试
 
 ```bash
 # 运行所有测试
 uv run pytest
 
-# 运行特定测试文件
+# 运行特定测试
 uv run pytest tests/test_config.py
 
 # 运行测试并显示覆盖率
 uv run pytest --cov=feishu
-
-# 详细输出
-uv run pytest -v
 ```
 
-### 代码规范
+### 代码质量
 
-项目遵循以下开发规范：
+```bash
+# 代码格式化
+uv run ruff format
 
-- **测试驱动开发**: 先写测试，再写实现
-- **类型注解**: 使用Python类型注解
-- **文档字符串**: 为所有函数添加详细的文档字符串
-- **错误处理**: 完善的异常处理机制
-- **日志记录**: 使用loguru进行日志记录
+# 代码检查
+uv run ruff check
+
+# 类型检查
+uv run mypy src
+```
+
+### 调试
+
+设置环境变量启用调试模式：
+
+```bash
+export FEISHU_LOG_LEVEL=DEBUG
+export FEISHU_CONFIG_PATH=/path/to/custom/config.toml
+```
+
+## API 参考
+
+### 配置类 (Config)
+
+```python
+class Config:
+    def __init__(self, enabled: bool, webhooks: List[str]):
+        """初始化配置"""
+    
+    @classmethod
+    def load(cls, config_path: Optional[str] = None) -> 'Config':
+        """加载配置文件"""
+    
+    @staticmethod
+    def get_config_path() -> str:
+        """获取配置文件路径"""
+    
+    @staticmethod
+    def get_default_config_dir() -> Path:
+        """获取默认配置目录"""
+    
+    def get_config_info(self) -> Dict[str, Any]:
+        """获取配置信息（脱敏）"""
+```
+
+### 机器人类 (FeishuBot)
+
+```python
+class FeishuBot:
+    def __init__(self, config: Optional[Config] = None):
+        """初始化机器人"""
+    
+    def send_text(self, message: str, webhook_url: Optional[str] = None) -> bool:
+        """发送文本消息"""
+    
+    def send_markdown(self, message: str, webhook_url: Optional[str] = None) -> bool:
+        """发送Markdown消息"""
+    
+    def test_connection(self) -> bool:
+        """测试连接"""
+```
+
+## 部署和发布
+
+### 构建包
+
+```bash
+# 构建分发包
+uv build
+
+# 检查包
+twine check dist/*
+```
+
+### 发布到PyPI
+
+```bash
+# 发布到测试PyPI
+twine upload --repository testpypi dist/*
+
+# 发布到正式PyPI
+twine upload dist/*
+```
 
 ## 故障排除
 
 ### 常见问题
 
-1. **配置文件不存在**
+1. **配置文件找不到**
+   - 检查配置文件路径
+   - 使用 `feishu config path` 查看查找路径
+   - 使用 `feishu config init` 初始化配置
+
+2. **Webhook无效**
+   - 验证webhook URL格式
+   - 检查机器人是否添加到群聊
+   - 使用 `feishu test` 测试连接
+
+3. **权限问题**
+   - 检查配置目录权限
+   - 确保可以写入 `~/.config/smallfeishu/`
+
+### 调试技巧
+
+1. **启用详细日志**
+   ```bash
+   export FEISHU_LOG_LEVEL=DEBUG
+   feishu test
    ```
-   错误: 配置文件不存在: config.toml
+
+2. **使用自定义配置路径**
+   ```bash
+   export FEISHU_CONFIG_PATH=/path/to/debug/config.toml
+   feishu status
    ```
-   解决: 复制 `config.example.toml` 为 `config.toml` 并填入正确配置
 
-2. **webhook URL无效**
+3. **检查配置加载**
+   ```bash
+   feishu config show
    ```
-   错误: 无效的webhook URL
-   ```
-   解决: 检查webhook URL格式，确保是飞书官方格式
 
-3. **网络连接失败**
-   ```
-   错误: 网络连接失败
-   ```
-   解决: 检查网络连接，确认webhook地址可访问
+## 贡献指南
 
-4. **飞书API返回错误**
-   ```
-   错误: 飞书API返回错误，代码: 9999
-   ```
-   解决: 检查webhook token是否正确，机器人是否被移除
-
-### 调试模式
-
-查看详细日志：
-
-```bash
-# 日志文件位置
-tail -f feishu.log
-
-# 或者查看控制台输出（INFO级别及以上）
-feishu send "测试" 2>&1
-```
-
-## 许可证
-
-MIT License
-
-## 贡献
-
-欢迎提交Issue和Pull Request！
-
-### 开发流程
-
-1. Fork项目
+1. Fork 项目
 2. 创建功能分支
-3. 编写测试用例
-4. 实现功能
-5. 运行测试确保通过
-6. 提交Pull Request
+3. 编写测试
+4. 确保所有测试通过
+5. 提交 Pull Request
 
-### 提交规范
+### 代码规范
 
-- 遵循测试驱动开发
-- 确保所有测试通过
-- 添加必要的文档
-- 保持代码风格一致
+- 使用 Type Hints
+- 编写函数级注释
+- 遵循 PEP 8 规范
+- 测试覆盖率 > 80%
+- 所有公共API需要文档

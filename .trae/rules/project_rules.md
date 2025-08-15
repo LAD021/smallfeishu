@@ -1,0 +1,1 @@
+uv tool install 要每次卸载重新安装
