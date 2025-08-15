@@ -199,9 +199,15 @@ class TestFeishuNotifier:
         expected = "第一行\n第二行\n第三行"
         assert result == expected
         
-        # 测试混合换行符
+        # 测试混合换行符（真实回车和转义字符）
         result = self.notifier._format_message("第一行\\n\n第二行")
         expected = "第一行\n\n第二行"
+        assert result == expected
+        
+        # 测试复杂混合场景：既有真实回车又有\n转义字符
+        mixed_input = "标题\\n\n内容1\\n内容2\n\\n结尾"
+        result = self.notifier._format_message(mixed_input)
+        expected = "标题\n\n内容1\n内容2\n\n结尾"
         assert result == expected
     
     def test_format_message_tabs_and_carriage_returns(self):
