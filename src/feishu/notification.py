@@ -159,6 +159,8 @@ class FeishuNotifier:
         """
         try:
             logger.debug(f"向webhook发送请求: {webhook}")
+            logger.debug(f"请求头: {self.headers}")
+            logger.debug(f"请求载荷: {json.dumps(payload, ensure_ascii=False, indent=2)}")
             
             response = requests.post(
                 webhook,
@@ -167,24 +169,32 @@ class FeishuNotifier:
                 timeout=self.timeout
             )
             
+            logger.debug(f"HTTP响应状态码: {response.status_code}")
+            logger.debug(f"HTTP响应头: {dict(response.headers)}")
+            logger.debug(f"HTTP响应内容: {response.text}")
+            
             # 检查HTTP状态码
             if response.status_code != 200:
-                raise NotificationError(
-                    f"HTTP请求失败，状态码: {response.status_code}, 响应: {response.text}"
-                )
+                error_msg = f"HTTP请求失败，状态码: {response.status_code}, 响应: {response.text}"
+                logger.error(error_msg)
+                raise NotificationError(error_msg)
             
             # 检查飞书API响应
             try:
                 result = response.json()
+                logger.debug(f"解析的JSON响应: {json.dumps(result, ensure_ascii=False, indent=2)}")
                 if result.get('code') != 0:
-                    raise NotificationError(
-                        f"飞书API返回错误，代码: {result.get('code')}, 消息: {result.get('msg')}"
-                    )
-            except json.JSONDecodeError:
+                    error_msg = f"飞书API返回错误，代码: {result.get('code')}, 消息: {result.get('msg')}"
+                    logger.error(error_msg)
+                    raise NotificationError(error_msg)
+                else:
+                    logger.info(f"飞书API响应成功: code={result.get('code')}, msg={result.get('msg')}")
+            except json.JSONDecodeError as e:
                 # 如果响应不是JSON格式，但状态码是200，认为成功
-                logger.warning(f"webhook响应不是JSON格式，但状态码为200，认为发送成功")
+                logger.warning(f"webhook响应不是JSON格式: {e}，但状态码为200，认为发送成功")
+                logger.warning(f"原始响应内容: {response.text}")
             
-            logger.debug(f"webhook响应成功: {response.text}")
+            logger.info(f"webhook发送成功: {webhook}")
             
         except Timeout as e:
             raise NotificationError(f"请求超时: {str(e)}")

@@ -72,12 +72,21 @@ class Config:
             logger.error(f"读取配置文件失败: {e}")
             raise ConfigError(f"读取配置文件失败: {e}")
         
-        # 验证配置结构
-        if 'notifications' not in config_data or 'feishu' not in config_data['notifications']:
+        # 验证配置结构 - 支持两种格式：[feishu] 或 [notifications.feishu]
+        feishu_config = None
+        if 'feishu' in config_data:
+            # 简化格式：[feishu]
+            feishu_config = config_data['feishu']
+            logger.debug("使用简化配置格式: [feishu]")
+        elif 'notifications' in config_data and 'feishu' in config_data['notifications']:
+            # 完整格式：[notifications.feishu]
+            feishu_config = config_data['notifications']['feishu']
+            logger.debug("使用完整配置格式: [notifications.feishu]")
+        else:
             logger.error("配置文件中缺少飞书配置段")
-            raise ConfigError("配置文件中缺少飞书配置段: [notifications.feishu]")
+            raise ConfigError("配置文件中缺少飞书配置段: [feishu] 或 [notifications.feishu]")
         
-        feishu_config = config_data['notifications']['feishu']
+        logger.debug(f"读取到的飞书配置: {feishu_config}")
         
         # 提取配置项
         feishu_enabled = feishu_config.get('enabled', False)

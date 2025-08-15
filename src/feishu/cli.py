@@ -36,11 +36,11 @@ class FeishuCLI:
         # 移除默认的日志处理器
         logger.remove()
         
-        # 添加控制台输出，只显示INFO及以上级别
+        # 添加控制台输出，显示DEBUG及以上级别以便调试
         logger.add(
             sys.stderr,
             format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
-            level="INFO"
+            level="DEBUG"
         )
         
         # 添加文件日志，记录所有级别

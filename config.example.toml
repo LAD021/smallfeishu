@@ -1,30 +1,6 @@
-# 飞书通知配置示例文件
-# 复制此文件为 config.toml 并填入真实配置信息
-# 注意：config.toml 文件已在 .gitignore 中排除，不会被提交到版本控制
-
-[notifications.feishu]
-# 是否启用飞书通知
-# 设置为 true 启用，false 禁用
-enabled = true
-
-# 飞书机器人 webhook 地址列表
-# 获取方式：
-# 1. 在飞书群聊中添加机器人
-# 2. 选择"自定义机器人"
-# 3. 复制生成的 webhook 地址
-# 4. 将地址替换下面的占位符
+[feishu]
+enabled=true
 webhooks = [
-    "https://open.feishu.cn/open-apis/bot/v2/hook/YOUR_WEBHOOK_TOKEN_HERE"
-    # "https://open.feishu.cn/open-apis/bot/v2/hook/ANOTHER_WEBHOOK_TOKEN_HERE"  # 可添加多个webhook
+    "https://open.feishu.cn/open-apis/bot/v2/hook/xxxxxxxx",
+    "https://open.feishu.cn/open-apis/bot/v2/hook/yyyyyyyy"
 ]
-
-# 可选配置项（如果需要的话）
-# [notifications.feishu.advanced]
-# # 消息发送间隔（秒）
-# interval = 1
-# 
-# # 重试次数
-# retry_count = 3
-# 
-# # 超时时间（秒）
-# timeout = 10
