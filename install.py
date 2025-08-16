@@ -5,7 +5,6 @@
 在 uv tool install 时自动执行，创建默认配置文件并显示使用指南。
 """
 
-import os
 import sys
 from pathlib import Path
 

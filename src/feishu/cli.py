@@ -45,9 +45,16 @@ class FeishuCLI:
             level="DEBUG"
         )
         
+        # 获取配置目录路径，确保目录存在
+        config_dir = Config.get_default_config_dir()
+        config_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 设置日志文件路径到配置目录
+        log_file_path = config_dir / "feishu.log"
+        
         # 添加文件日志，记录所有级别
         logger.add(
-            "feishu.log",
+            str(log_file_path),
             format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}",
             level="DEBUG",
             rotation="10 MB",
@@ -258,7 +265,7 @@ class FeishuCLI:
             app_config = Config.load()
             config_info = app_config.get_config_info()
             
-            print(f"\n=== 飞书通知配置 ===")
+            print("\n=== 飞书通知配置 ===")
             print(f"状态: {'✅ 启用' if config_info['enabled'] else '❌ 禁用'}")
             print(f"Webhook数量: {config_info['webhook_count']}")
             
@@ -329,9 +336,9 @@ webhooks = [
                 f.write(example_config)
             
             print(f"✅ 配置文件已创建: {config_file}")
-            print(f"\n🔧 请编辑配置文件，将 YOUR_WEBHOOK_TOKEN_HERE 替换为真实的飞书机器人webhook地址")
-            print(f"\n🚀 配置完成后，使用以下命令测试:")
-            print(f"   feishu test")
+            print("\n🔧 请编辑配置文件，将 YOUR_WEBHOOK_TOKEN_HERE 替换为真实的飞书机器人webhook地址")
+            print("\n🚀 配置完成后，使用以下命令测试:")
+            print("   feishu test")
             
         except Exception as e:
             logger.error(f"初始化配置文件失败: {e}")
@@ -353,10 +360,10 @@ webhooks = [
                 print("❌ 配置文件不存在")
                 print("💡 使用 'feishu config init' 初始化配置文件")
             
-            print(f"\n🔍 配置文件查找顺序:")
-            print(f"  1. 环境变量 FEISHU_CONFIG_PATH")
+            print("\n🔍 配置文件查找顺序:")
+            print("  1. 环境变量 FEISHU_CONFIG_PATH")
             print(f"  2. {os.path.join(config_dir, 'config.toml')} (推荐)")
-            print(f"  3. ./config.toml (当前目录)")
+            print("  3. ./config.toml (当前目录)")
             print()
             
         except Exception as e:

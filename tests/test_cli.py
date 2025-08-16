@@ -8,11 +8,8 @@
 - 日志输出
 """
 
-import os
-import tempfile
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from pathlib import Path
+from unittest.mock import Mock, patch
 
 from feishu.cli import FeishuCLI
 from feishu.config import ConfigError
@@ -191,7 +188,7 @@ class TestFeishuCLI:
     def test_logging_setup(self, mock_logger):
         """测试日志设置"""
         # 创建新的CLI实例会调用日志设置
-        cli = FeishuCLI()
+        _cli = FeishuCLI()
         
         # 验证日志配置被调用
         # 注意：这里的测试可能需要根据实际的日志配置方式调整

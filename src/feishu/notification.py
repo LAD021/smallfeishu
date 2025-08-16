@@ -9,9 +9,7 @@
 """
 
 import json
-import re
-import time
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 import requests
 from loguru import logger

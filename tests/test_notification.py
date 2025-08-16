@@ -7,10 +7,9 @@
 - 消息格式化
 """
 
-import json
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from requests.exceptions import RequestException, Timeout, ConnectionError
+from unittest.mock import Mock, patch
+from requests.exceptions import Timeout, ConnectionError
 
 from feishu.notification import FeishuNotifier, NotificationError
 
@@ -33,6 +32,8 @@ class TestFeishuNotifier:
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"code": 0, "msg": "success"}
+        mock_response.headers = {"Content-Type": "application/json"}
+        mock_response.text = '{"code": 0, "msg": "success"}'
         mock_post.return_value = mock_response
         
         result = self.notifier.send_text("测试消息")
@@ -60,6 +61,8 @@ class TestFeishuNotifier:
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"code": 0, "msg": "success"}
+        mock_response.headers = {"Content-Type": "application/json"}
+        mock_response.text = '{"code": 0, "msg": "success"}'
         mock_post.return_value = mock_response
         
         notifier = FeishuNotifier(self.webhooks, timeout=30)
@@ -113,10 +116,18 @@ class TestFeishuNotifier:
     def test_send_text_message_partial_failure(self, mock_post):
         """测试部分webhook失败的情况"""
         # 第一个webhook成功，第二个失败
-        responses = [
-            Mock(status_code=200, json=lambda: {"code": 0, "msg": "success"}),
-            Mock(status_code=400, text="Bad Request")
-        ]
+        success_response = Mock()
+        success_response.status_code = 200
+        success_response.json.return_value = {"code": 0, "msg": "success"}
+        success_response.headers = {"Content-Type": "application/json"}
+        success_response.text = '{"code": 0, "msg": "success"}'
+        
+        failure_response = Mock()
+        failure_response.status_code = 400
+        failure_response.text = "Bad Request"
+        failure_response.headers = {"Content-Type": "text/plain"}
+        
+        responses = [success_response, failure_response]
         mock_post.side_effect = responses
         
         with pytest.raises(NotificationError, match="部分webhook发送失败"):
@@ -128,6 +139,8 @@ class TestFeishuNotifier:
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"code": 0, "msg": "success"}
+        mock_response.headers = {"Content-Type": "application/json"}
+        mock_response.text = '{"code": 0, "msg": "success"}'
         mock_post.return_value = mock_response
         
         content = {
@@ -184,6 +197,8 @@ class TestFeishuNotifier:
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"code": 0, "msg": "success"}
+        mock_response.headers = {"Content-Type": "application/json"}
+        mock_response.text = '{"code": 0, "msg": "success"}'
         mock_post.return_value = mock_response
         
         self.notifier.send_text("测试消息")
@@ -259,6 +274,8 @@ class TestFeishuNotifier:
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"code": 0, "msg": "success"}
+        mock_response.headers = {"Content-Type": "application/json"}
+        mock_response.text = '{"code": 0, "msg": "success"}'
         mock_post.return_value = mock_response
         
         # 发送包含转义换行符的消息
