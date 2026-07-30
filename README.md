@@ -1,187 +1,138 @@
-# SmallFeishu - 飞书通知工具
+> [English version](./README.en.md)
 
-一个简单易用的飞书机器人消息发送工具，支持命令行和Python API两种使用方式。
+# SmallFeishu
 
-## 功能特性
+一个轻量、可脚本化的飞书自定义机器人通知工具，提供命令行和 Python API。
 
-- 🚀 简单易用的命令行界面
-- 📝 支持文本、Markdown等多种消息格式
-- 🔧 灵活的配置管理
-- 🔄 支持多个webhook地址
-- 📊 内置状态检查和测试功能
-- 🛡️ 完善的错误处理和日志记录
+SmallFeishu 已发布 `v0.1.0` Git 标签。它解决的是一个明确问题：把脚本、定时任务、CI 或本地 Agent 的文本消息发送到一个或多个飞书群，不需要创建完整的飞书应用。
+
+## 适合什么场景
+
+- 脚本或定时任务完成后发送提醒
+- 将同一条消息发送到多个飞书群
+- 在终端中检查配置和 Webhook 状态
+- 在 Python 自动化中直接调用通知器
+
+## 已实现能力
+
+| 能力 | 入口 | 状态 |
+|---|---|---|
+| 文本通知 | CLI / Python | 可用 |
+| 多 Webhook | TOML 配置 | 可用 |
+| 配置初始化、查看与路径查询 | CLI | 可用 |
+| 状态检查与测试消息 | CLI | 可用 |
+| Webhook 脱敏显示 | CLI / Python | 可用 |
 
 ## 安装
 
-```bash
-# 使用 uv 安装（推荐）
-uv tool install .
+要求 Python 3.9 或更高版本。可以直接从 GitHub 安装：
 
-# 或者使用 pip 安装
-pip install .
+```bash
+uv tool install git+https://github.com/LAD021/smallfeishu.git
 ```
 
-安装完成后，工具会自动在 `~/.config/smallfeishu/` 目录下创建配置文件 `config.toml`。
+也可以克隆后安装：
+
+```bash
+git clone https://github.com/LAD021/smallfeishu.git
+cd smallfeishu
+uv tool install .
+```
+
+使用 pip 时：
+
+```bash
+python -m pip install "git+https://github.com/LAD021/smallfeishu.git"
+```
 
 ## 配置
 
-### 配置文件位置
-
-工具会按以下优先级查找配置文件：
-
-1. 环境变量 `FEISHU_CONFIG_PATH` 指定的路径
-2. `~/.config/smallfeishu/config.toml` （推荐）
-3. `./config.toml` （当前目录）
-
-### 初始化配置
+初始化配置文件：
 
 ```bash
-# 初始化配置文件
 feishu config init
-
-# 查看配置文件路径
-feishu config path
-
-# 显示当前配置
-feishu config show
 ```
 
-### 配置文件格式
-
-编辑 `~/.config/smallfeishu/config.toml` 文件：
+默认配置位置是 `~/.config/smallfeishu/config.toml`：
 
 ```toml
-# 飞书通知配置文件
 [feishu]
-# 是否启用飞书通知
 enabled = true
-
-# 飞书机器人 webhook 地址列表
 webhooks = [
-    "https://open.feishu.cn/open-apis/bot/v2/hook/YOUR_WEBHOOK_TOKEN_HERE"
-    # "https://open.feishu.cn/open-apis/bot/v2/hook/ANOTHER_WEBHOOK_TOKEN_HERE"  # 可添加多个webhook
+  "https://open.feishu.cn/open-apis/bot/v2/hook/YOUR_WEBHOOK_TOKEN"
 ]
 ```
 
-### 获取飞书机器人Webhook地址
+配置查找顺序：
 
-1. 在飞书群聊中点击右上角设置
-2. 选择「机器人」→「添加机器人」
-3. 选择「自定义机器人」
-4. 设置机器人名称和描述
-5. 复制生成的 webhook 地址
-6. 将地址替换配置文件中的 `YOUR_WEBHOOK_TOKEN_HERE`
+1. `FEISHU_CONFIG_PATH` 指定的文件
+2. `~/.config/smallfeishu/config.toml`
+3. 当前目录下的 `config.toml`
 
-## 使用方法
+Webhook 是敏感凭证，不要提交到 Git，也不要放进公开日志或截图。
 
-### 命令行使用
+## 命令行
 
 ```bash
-# 发送简单文本消息
-feishu send "Hello, World!"
+# 发送文本
+feishu send "构建已经完成"
 
-# 发送多行消息
-feishu send "第一行\n第二行\n第三行"
-
-# 从文件读取消息内容
-feishu send --file message.txt
-
-# 发送Markdown格式消息
-feishu send --type markdown "**粗体文本** 和 *斜体文本*"
-
-# 测试配置和连接
-feishu test
-
-# 检查工具状态
+# 查看配置状态（Webhook 会脱敏）
 feishu status
 
-# 查看版本信息
-feishu version
+# 发送测试消息
+feishu test
 
-# 查看帮助
-feishu --help
-feishu send --help
+# 管理配置
+feishu config show
+feishu config path
+
+# 查看版本
+feishu version
 ```
 
-### Python API使用
+## Python API
+
+当前公开类是 `Config` 和 `FeishuNotifier`：
 
 ```python
-from feishu import FeishuBot
+from feishu.config import Config
+from feishu.notification import FeishuNotifier
 
-# 创建机器人实例
-bot = FeishuBot()
-
-# 发送文本消息
-bot.send_text("Hello from Python!")
-
-# 发送Markdown消息
-bot.send_markdown("**重要通知**\n\n项目部署完成！")
-
-# 发送到指定webhook
-bot.send_text("测试消息", webhook_url="your_webhook_url")
+config = Config.load()
+notifier = FeishuNotifier(config.get_webhooks())
+notifier.send_text("自动化任务已经完成")
 ```
 
-## 配置管理命令
+也可以直接传入 Webhook 列表：
 
-```bash
-# 显示当前配置状态
-feishu config show
+```python
+from feishu.notification import FeishuNotifier
 
-# 初始化配置文件（会创建示例配置）
-feishu config init
-
-# 显示配置文件路径信息
-feishu config path
+notifier = FeishuNotifier([
+    "https://open.feishu.cn/open-apis/bot/v2/hook/YOUR_WEBHOOK_TOKEN"
+])
+notifier.send_text("Hello from Python")
 ```
 
-## 故障排除
-
-### 常见问题
-
-1. **配置文件不存在**
-   ```bash
-   feishu config init  # 初始化配置文件
-   ```
-
-2. **webhook地址无效**
-   - 检查webhook地址是否正确
-   - 确认机器人是否已添加到群聊
-   - 使用 `feishu test` 测试连接
-
-3. **权限问题**
-   - 确保有权限写入配置目录 `~/.config/smallfeishu/`
-   - 检查配置文件权限
-
-### 调试模式
-
-设置环境变量启用详细日志：
+## 开发与验证
 
 ```bash
-export FEISHU_LOG_LEVEL=DEBUG
-feishu test
-```
-
-## 开发
-
-```bash
-# 克隆项目
-git clone <repository_url>
+git clone https://github.com/LAD021/smallfeishu.git
 cd smallfeishu
-
-# 安装开发依赖
-uv sync
-
-# 运行测试
+uv sync --extra dev
 uv run pytest
-
-# 运行代码检查
-uv run ruff check
-uv run mypy src
-
-# 本地安装开发版本
-uv tool install -e .
 ```
 
-## 许可证
+当前测试覆盖配置、CLI、消息格式化和通知异常路径。部署时仍建议用你自己的飞书机器人完成一次真实发送验证。
 
-MIT License
+## 项目状态
+
+- 当前版本：`v0.1.0`
+- 发布形式：Git 标签（仓库当前没有单独的 GitHub Release 页面）
+- 许可证：MIT
+- 主要实现：Python
+
+## 许可证与反馈
+
+本项目采用 [MIT License](./LICENSE)。问题和改进建议请提交到 [GitHub Issues](https://github.com/LAD021/smallfeishu/issues)。
