@@ -61,13 +61,14 @@ class FeishuCLI:
             retention="7 days"
         )
     
-    def send(self, message: str, message_type: str = "text", file: Optional[str] = None) -> bool:
+    def send(self, message: str, message_type: str = "text", file: Optional[str] = None, config: Optional[str] = None) -> bool:
         """发送消息到飞书群
         
         Args:
             message: 要发送的消息内容
             message_type: 消息类型，支持 text, markdown
             file: 从文件读取消息内容
+            config: 自定义配置文件路径
             
         Returns:
             bool: 发送是否成功
@@ -99,7 +100,7 @@ class FeishuCLI:
                 sys.exit(1)
             
             # 加载配置并创建通知器
-            app_config = Config.load()
+            app_config = Config.load(config)
             
             # 检查飞书通知是否启用
             if not app_config.is_enabled():
@@ -145,8 +146,15 @@ class FeishuCLI:
         """
         try:
             # 加载配置
-            app_config = Config.load()
-            config_info = app_config.get_config_info()
+            app_config = Config.load(None)
+            config_info = app_config.get_config_info() if hasattr(app_config, 'get_config_info') else None
+            if not isinstance(config_info, dict):
+                webhooks = app_config.get_webhooks()
+                config_info = {
+                    'enabled': app_config.is_enabled(),
+                    'webhook_count': len(webhooks),
+                    'webhooks': webhooks,
+                }
             
             # 显示状态信息
             print("\n=== 飞书通知配置状态 ===")
